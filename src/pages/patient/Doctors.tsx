@@ -1,26 +1,34 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, MapPin, Star, Clock, Calendar, Filter } from 'lucide-react'
+import { Search, MapPin, Star, Clock, Calendar, Filter, Verified } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useStore } from '@/store'
 import PageHeader from '@/components/shared/PageHeader'
 
-const specialties = ['All', 'Cardiology', 'Pediatrics', 'Orthopedics', 'General Medicine', 'Neurology']
+const specialties = ['All', 'Cardiology', 'Pediatrics', 'Orthopedics', 'General Medicine']
+
+// Map doctor IDs to their photo and extra metadata
+const doctorMeta: Record<string, { img: string; rating: number; consultations: number; badge?: string }> = {
+  'doc-1': { img: '/doctor_rohan.png',  rating: 4.9, consultations: 2840, badge: 'Top Rated' },
+  'doc-2': { img: '/doctor_shalini.png', rating: 4.7, consultations: 1620, badge: 'Patient Favourite' },
+  'doc-3': { img: '/doctor_vikram.png',  rating: 4.8, consultations: 3200 },
+  'doc-4': { img: '/doctor_amit.png',   rating: 4.5, consultations: 980 },
+}
 
 export default function DoctorsPage() {
-  const { doctors, appointments, bookAppointment } = useStore()
+  const { doctors, bookAppointment } = useStore()
   const [search, setSearch] = useState('')
   const [selectedSpecialty, setSelectedSpecialty] = useState('All')
   const [bookedId, setBookedId] = useState<string | null>(null)
 
   const filtered = doctors.filter(doc => {
-    const matchSearch = doc.name.toLowerCase().includes(search.toLowerCase()) ||
-      doc.specialization.toLowerCase().includes(search.toLowerCase()) ||
-      doc.facilityName.toLowerCase().includes(search.toLowerCase())
+    const q = search.toLowerCase()
+    const matchSearch = doc.name.toLowerCase().includes(q) ||
+      doc.specialization.toLowerCase().includes(q) ||
+      doc.facilityName.toLowerCase().includes(q)
     const matchSpecialty = selectedSpecialty === 'All' || doc.specialization === selectedSpecialty
     return matchSearch && matchSpecialty
   })
@@ -41,15 +49,11 @@ export default function DoctorsPage() {
     setTimeout(() => setBookedId(null), 3000)
   }
 
-  const ratings: Record<string, number> = {
-    'doc-1': 4.9, 'doc-2': 4.7, 'doc-3': 4.8, 'doc-4': 4.5
-  }
-
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Find a Doctor"
-        subtitle="Browse top-rated specialists across all facilities."
+        subtitle="Browse top-rated specialists across all partner facilities."
         actions={
           <Button variant="outline" className="gap-2">
             <Filter className="size-4" /> Filters
@@ -57,20 +61,18 @@ export default function DoctorsPage() {
         }
       />
 
-      {/* Search & Filter Bar */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-          <Input
-            placeholder="Search by doctor name, specialty, hospital…"
-            className="pl-9"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
+      {/* Search */}
+      <div className="relative mb-5">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+        <Input
+          placeholder="Search by doctor name, specialty or hospital…"
+          className="pl-11 h-12 text-base rounded-xl shadow-sm"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
       </div>
 
-      {/* Specialty Chips */}
+      {/* Specialty Filter Chips */}
       <div className="flex gap-2 flex-wrap mb-8">
         {specialties.map(spec => (
           <button
@@ -87,75 +89,89 @@ export default function DoctorsPage() {
         ))}
       </div>
 
-      {/* Doctors Grid */}
+      {/* Doctor Grid */}
       {filtered.length === 0 ? (
-        <div className="text-center py-20 text-slate-400">
+        <div className="text-center py-20 text-slate-400 border-2 border-dashed rounded-2xl">
           <Search className="size-10 mx-auto mb-3 opacity-40" />
-          <p className="font-medium">No doctors found</p>
-          <p className="text-sm">Try a different search term or specialty</p>
+          <p className="font-medium text-slate-600">No doctors found</p>
+          <p className="text-sm mt-1">Try a different search or specialty</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           {filtered.map((doc, i) => {
-            const doctorApts = appointments.filter(a => a.doctorId === doc.id && a.status !== 'cancelled')
+            const meta = doctorMeta[doc.id]
             const isBooked = bookedId === doc.id
-            const rating = ratings[doc.id] ?? 4.6
 
             return (
               <motion.div
                 key={doc.id}
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: i * 0.07 }}
+                transition={{ duration: 0.35, delay: i * 0.08 }}
               >
-                <Card className="hover:shadow-md transition-shadow duration-200 h-full flex flex-col">
-                  <CardContent className="p-5 flex flex-col h-full">
-                    {/* Doctor Info */}
-                    <div className="flex gap-4 mb-4">
-                      <Avatar className="size-14 border-2 border-white shadow-md">
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-teal-500 text-white font-bold text-lg">
-                          {doc.name.split(' ').filter(w => w !== 'Dr.').map(w => w[0]).join('').substring(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-slate-900 truncate">{doc.name}</h3>
-                        <p className="text-sm text-blue-600 font-medium">{doc.specialization}</p>
-                        <div className="flex items-center gap-1 mt-1">
-                          <Star className="size-3.5 fill-amber-400 text-amber-400" />
-                          <span className="text-sm font-semibold text-slate-700">{rating}</span>
-                          <span className="text-xs text-slate-400">· {doc.experience} exp.</span>
-                        </div>
+                <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 group border-slate-200 h-full flex flex-col">
+                  {/* Photo */}
+                  <div className="relative h-52 overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
+                    {meta?.img ? (
+                      <img
+                        src={meta.img}
+                        alt={doc.name}
+                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-5xl font-bold text-slate-300">
+                        {doc.name.split(' ').filter(w => w !== 'Dr.').map(w => w[0]).join('').substring(0, 2)}
+                      </div>
+                    )}
+                    {/* Gradient overlay at bottom */}
+                    <div className="absolute bottom-0 inset-x-0 h-24 bg-gradient-to-t from-white to-transparent" />
+
+                    {meta?.badge && (
+                      <div className="absolute top-3 left-3">
+                        <Badge variant="default" className="text-[11px] shadow-md">⭐ {meta.badge}</Badge>
+                      </div>
+                    )}
+
+                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 flex items-center gap-1 shadow-sm">
+                      <Star className="size-3 fill-amber-400 text-amber-400" />
+                      <span className="text-xs font-bold text-slate-800">{meta?.rating ?? '4.5'}</span>
+                    </div>
+                  </div>
+
+                  <CardContent className="p-4 flex flex-col flex-1">
+                    <div className="mb-3">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-bold text-slate-900 leading-tight">{doc.name}</h3>
+                        <Verified className="size-4 text-blue-500 fill-blue-500 shrink-0" />
+                      </div>
+                      <p className="text-sm text-blue-600 font-medium mt-0.5">{doc.specialization}</p>
+                    </div>
+
+                    <div className="space-y-1.5 text-sm text-slate-600 mb-3 flex-1">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="size-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate text-xs">{doc.facilityName}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="size-3.5 text-slate-400 shrink-0" />
+                        <span className="text-xs">{doc.experience} exp.</span>
                       </div>
                     </div>
 
-                    {/* Details */}
-                    <div className="space-y-2 mb-4 flex-1">
-                      <div className="flex items-start gap-2 text-sm text-slate-600">
-                        <MapPin className="size-4 text-slate-400 mt-0.5 shrink-0" />
-                        <span>{doc.facilityName}</span>
-                      </div>
-                      <div className="flex items-start gap-2 text-sm text-slate-600">
-                        <Clock className="size-4 text-slate-400 mt-0.5 shrink-0" />
-                        <span>{doc.availability}</span>
-                      </div>
-                    </div>
-
-                    {/* Queue Status */}
-                    <div className="flex items-center justify-between py-3 border-t border-slate-100 mb-4">
-                      <div className="text-center">
-                        <p className="text-xs text-slate-400">Seen today</p>
-                        <p className="font-bold text-slate-800">{doctorApts.length}</p>
+                    <div className="flex items-center justify-between py-2.5 border-t border-slate-100 mb-3 text-xs">
+                      <div>
+                        <p className="text-slate-400">Consultations</p>
+                        <p className="font-bold text-slate-800">{(meta?.consultations ?? 0).toLocaleString()}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs text-slate-400">Current token</p>
+                        <p className="text-slate-400">Current</p>
                         <p className="font-bold text-slate-800">#{doc.currentToken}</p>
                       </div>
                       <Badge variant={doc.totalTokens > 0 ? 'success' : 'secondary'}>
-                        {doc.totalTokens > 0 ? 'Available' : 'No slots'}
+                        {doc.totalTokens > 0 ? 'Available' : 'Full'}
                       </Badge>
                     </div>
 
-                    {/* Book Button */}
                     <Button
                       className="w-full gap-2"
                       variant={isBooked ? 'secondary' : 'default'}
@@ -163,7 +179,7 @@ export default function DoctorsPage() {
                       disabled={isBooked}
                     >
                       <Calendar className="size-4" />
-                      {isBooked ? '✓ Appointment Booked!' : 'Book Appointment'}
+                      {isBooked ? '✓ Booked!' : 'Book Appointment'}
                     </Button>
                   </CardContent>
                 </Card>
